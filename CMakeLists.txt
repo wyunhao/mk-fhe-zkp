@@ -26,3 +26,11 @@ target_compile_options(microbench PRIVATE -O2 -Wall)
 add_executable(prototype_ext prototype_ext.cpp)
 target_link_libraries(prototype_ext PRIVATE SEAL::seal)
 target_compile_options(prototype_ext PRIVATE -O2 -Wall -Wno-unused-function -Wno-unused-variable)
+
+add_executable(prototype_ptct prototype_ptct.cpp)
+target_link_libraries(prototype_ptct PRIVATE SEAL::seal)
+target_compile_options(prototype_ptct PRIVATE -O2 -Wall -Wno-unused-function -Wno-unused-variable)
+
+add_executable(prototype_full_chain prototype_full_chain.cpp)
+target_link_libraries(prototype_full_chain PRIVATE SEAL::seal)
+target_compile_options(prototype_full_chain PRIVATE -O2 -Wall -Wno-unused-function -Wno-unused-variable)
