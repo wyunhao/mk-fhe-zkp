@@ -14,3 +14,15 @@ find_package(SEAL 4.1 REQUIRED PATHS "${CMAKE_CURRENT_SOURCE_DIR}/seal-install/l
 add_executable(prototype prototype.cpp)
 target_link_libraries(prototype PRIVATE SEAL::seal)
 target_compile_options(prototype PRIVATE -O2 -Wall -Wno-unused-function -Wno-unused-variable)
+
+add_executable(seal_bench seal_bench.cpp)
+target_link_libraries(seal_bench PRIVATE SEAL::seal)
+target_compile_options(seal_bench PRIVATE -O2 -Wall)
+
+add_executable(microbench microbench.cpp)
+target_link_libraries(microbench PRIVATE SEAL::seal)
+target_compile_options(microbench PRIVATE -O2 -Wall)
+
+add_executable(prototype_ext prototype_ext.cpp)
+target_link_libraries(prototype_ext PRIVATE SEAL::seal)
+target_compile_options(prototype_ext PRIVATE -O2 -Wall -Wno-unused-function -Wno-unused-variable)
