@@ -1145,6 +1145,107 @@ static int run_smudge_test(int q0_bits = 40, int smudge_log2 = 50, int K_log2 = 
     return ok ? 0 : 1;
 }
 
+// -------------------------- Multi-key smudge pipeline STRESS test --------------------------
+// Repeats the multi-key smudge pipeline `iters` times with independent randomness (keys,
+// messages, encryption noise, smudge), counts decryption failures at L=2 (after smudge,
+// before final mod-switch) and at L=1 (after final mod-switch).
+static int run_smudge_mk_stress(int q0_bits, int smudge_log2, int iters) {
+    using std::cout;
+    Params params;
+    const uint64_t plain_modulus = (uint64_t(7) << 20) + 1;
+    vector<int> q_bits = {q0_bits, 43, 43};
+    params_init(params, plain_modulus, q_bits, /*N*/ 8192, /*ell*/ 4, /*tau*/ 1, /*hw*/ 32);
+
+    int q0_actual = bit_length(params.q_chain[0].value());
+    int q1_bits   = bit_length(params.q_chain[1].value());
+    int q2_bits   = bit_length(params.q_chain[2].value());
+
+    cout << "=== Multi-key smudge pipeline STRESS test ===\n"
+         << "  N = " << params.N << ", p = " << plain_modulus
+         << ", ell' = " << params.ell_prime << "\n"
+         << "  q chain: q0=" << q0_actual << "b  q1=" << q1_bits << "b  q2=" << q2_bits << "b\n"
+         << "  smudge magnitude = 2^" << smudge_log2 << " (on each d3[i])\n"
+         << "  iterations:    " << iters << "\n\n";
+
+    int ok_total = 0;
+    int fail_L2 = 0, fail_L1_only = 0;
+    int sparsi_fail_L1 = 0;
+    int worst_progress_print = -1;
+    auto t0 = std::chrono::steady_clock::now();
+
+    for (int it = 0; it < iters; it++) {
+        Prng prng((uint64_t)it * 1000003ULL + 7777ULL);
+
+        SecretKeyScalar sk1 = keygen_scalar(params, prng);
+        SecretKeyVector sk2 = keygen_vector(params, prng);
+
+        vector<uint64_t> mu1(params.N);
+        vector<vector<uint64_t>> m2(params.ell, vector<uint64_t>(params.N));
+        for (size_t i = 0; i < params.N; i++) {
+            mu1[i] = prng.uniform_below(plain_modulus);
+            for (size_t c = 0; c < params.ell; c++) m2[c][i] = prng.uniform_below(plain_modulus);
+        }
+
+        auto ct1 = encrypt_scalar(sk1, mu1, params, prng);
+        auto ct2 = encrypt_vector(sk2, m2, params, prng);
+
+        auto tct = mkMul(ct1, ct2, params);
+        mod_switch(tct, params);  // L=3 → L=2
+
+        for (size_t i = 0; i < tct.d3.size(); i++) {
+            add_smudge_poly(tct.d3[i], smudge_log2, params, prng);
+        }
+
+        bool ok_chk;
+        auto dec_L2 = mkDec(sk1, sk2, tct, params, ok_chk);
+        bool match_L2 = true;
+        for (size_t i = 0; i < params.ell; i++) {
+            auto expected = plain_mul(mu1, m2[i], params);
+            if (dec_L2[i] != expected) { match_L2 = false; break; }
+        }
+
+        mod_switch(tct, params);  // L=2 → L=1
+        auto dec_L1 = mkDec(sk1, sk2, tct, params, ok_chk);
+        bool match_L1 = true;
+        for (size_t i = 0; i < params.ell; i++) {
+            auto expected = plain_mul(mu1, m2[i], params);
+            if (dec_L1[i] != expected) { match_L1 = false; break; }
+        }
+
+        if (match_L1) ok_total++;
+        else if (!match_L2) fail_L2++;
+        else fail_L1_only++;
+
+        if (match_L1 && !ok_chk) sparsi_fail_L1++;
+
+        int pct = (it + 1) * 100 / iters;
+        if (pct >= worst_progress_print + 10) {
+            auto t1 = std::chrono::steady_clock::now();
+            double sec = std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count() / 1000.0;
+            cout << "  [progress] " << (it + 1) << "/" << iters
+                 << " (" << pct << "%)  ok=" << ok_total
+                 << "  fail_L2=" << fail_L2 << "  fail_L1_only=" << fail_L1_only
+                 << "   elapsed " << std::fixed << std::setprecision(1) << sec << "s\n";
+            worst_progress_print = pct;
+        }
+    }
+
+    auto t1 = std::chrono::steady_clock::now();
+    double sec = std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count() / 1000.0;
+
+    cout << "\n=== Summary ===\n"
+         << "  iterations:                  " << iters << "\n"
+         << "  ok (final L=1 decrypt):      " << ok_total
+         << "  (" << std::fixed << std::setprecision(3) << 100.0 * ok_total / iters << "%)\n"
+         << "  failed at L=2 (post-smudge): " << fail_L2 << "\n"
+         << "  failed at L=1 only:          " << fail_L1_only << "\n"
+         << "  sparsification check fails:  " << sparsi_fail_L1 << "\n"
+         << "  total runtime:               " << sec << "s ("
+         << (sec * 1000.0 / iters) << " ms/iter)\n";
+
+    return (ok_total == iters) ? 0 : 1;
+}
+
 // -------------------------- Multi-key smudge pipeline test --------------------------
 // Pipeline (true multi-key, not scalar):
 //   1) Encrypt ct_1 (scalar, BGV) and ct_2 (vector, ell'=5) at L=3.
@@ -1286,6 +1387,12 @@ int main(int argc, char* argv[]) {
             int q0_bits = (argc >= 3) ? std::atoi(argv[2]) : 40;
             int smudge = (argc >= 4) ? std::atoi(argv[3]) : 50;
             return run_smudge_mk_test(q0_bits, smudge);
+        }
+        if (cmd == "smudge-mk-stress") {
+            int q0_bits = (argc >= 3) ? std::atoi(argv[2]) : 32;
+            int smudge = (argc >= 4) ? std::atoi(argv[3]) : 50;
+            int iters = (argc >= 5) ? std::atoi(argv[4]) : 1000;
+            return run_smudge_mk_stress(q0_bits, smudge, iters);
         }
     }
 
