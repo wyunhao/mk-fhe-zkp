@@ -19,6 +19,10 @@ add_executable(seal_bench seal_bench.cpp)
 target_link_libraries(seal_bench PRIVATE SEAL::seal)
 target_compile_options(seal_bench PRIVATE -O2 -Wall)
 
+add_executable(seal_bench_bgv_bfv seal_bench_bgv_bfv.cpp)
+target_link_libraries(seal_bench_bgv_bfv PRIVATE SEAL::seal)
+target_compile_options(seal_bench_bgv_bfv PRIVATE -O2 -Wall)
+
 add_executable(microbench microbench.cpp)
 target_link_libraries(microbench PRIVATE SEAL::seal)
 target_compile_options(microbench PRIVATE -O2 -Wall)
@@ -34,3 +38,15 @@ target_compile_options(prototype_ptct PRIVATE -O2 -Wall -Wno-unused-function -Wn
 add_executable(prototype_full_chain prototype_full_chain.cpp)
 target_link_libraries(prototype_full_chain PRIVATE SEAL::seal)
 target_compile_options(prototype_full_chain PRIVATE -O2 -Wall -Wno-unused-function -Wno-unused-variable)
+
+add_executable(prototype_full_chain_nozk prototype_full_chain_nozk.cpp)
+target_link_libraries(prototype_full_chain_nozk PRIVATE SEAL::seal)
+target_compile_options(prototype_full_chain_nozk PRIVATE -O2 -Wall -Wno-unused-function -Wno-unused-variable)
+
+add_executable(prototype_longest_chain prototype_longest_chain.cpp)
+target_link_libraries(prototype_longest_chain PRIVATE SEAL::seal)
+target_compile_options(prototype_longest_chain PRIVATE -O2 -Wall -Wno-unused-function -Wno-unused-variable)
+
+add_executable(prototype_tight_chain prototype_tight_chain.cpp)
+target_link_libraries(prototype_tight_chain PRIVATE SEAL::seal)
+target_compile_options(prototype_tight_chain PRIVATE -O2 -Wall -Wno-unused-function -Wno-unused-variable)
