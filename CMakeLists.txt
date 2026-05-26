@@ -50,3 +50,21 @@ target_compile_options(prototype_longest_chain PRIVATE -O2 -Wall -Wno-unused-fun
 add_executable(prototype_tight_chain prototype_tight_chain.cpp)
 target_link_libraries(prototype_tight_chain PRIVATE SEAL::seal)
 target_compile_options(prototype_tight_chain PRIVATE -O2 -Wall -Wno-unused-function -Wno-unused-variable)
+
+add_executable(prototype_longest_chain_p17 prototype_longest_chain_p17.cpp)
+target_link_libraries(prototype_longest_chain_p17 PRIVATE SEAL::seal)
+target_compile_options(prototype_longest_chain_p17 PRIVATE -O2 -Wall -Wno-unused-function -Wno-unused-variable)
+
+add_executable(proto_large_pl_tighten proto_large_pl_tighten.cpp)
+target_link_libraries(proto_large_pl_tighten PRIVATE SEAL::seal)
+target_compile_options(proto_large_pl_tighten PRIVATE -O2 -Wall -Wno-unused-function -Wno-unused-variable)
+
+# util library (reusable helpers)
+add_library(mk_util STATIC util/ring_switch.cpp)
+target_include_directories(mk_util PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
+target_link_libraries(mk_util PUBLIC SEAL::seal)
+target_compile_options(mk_util PRIVATE -O2 -Wall)
+
+add_executable(prototype_ring_switch prototype_ring_switch.cpp)
+target_link_libraries(prototype_ring_switch PRIVATE mk_util SEAL::seal)
+target_compile_options(prototype_ring_switch PRIVATE -O2 -Wall -Wno-unused-function -Wno-unused-variable)
